@@ -36,12 +36,12 @@ public class UserController {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('SCOPE_ADMIN')")
     @PostMapping("/users")
     public ResponseEntity<Void> newUser(@RequestBody CreateUserDto dto) {
 
         var basicRole = roleRepository.findByName(Role.Values.BASIC.name());
         var adminRole = roleRepository.findByName(Role.Values.ADMIN.name());
-
 
         var userFromDb = userRepository.findByUsername(dto.username());
         if (userFromDb.isPresent()) {

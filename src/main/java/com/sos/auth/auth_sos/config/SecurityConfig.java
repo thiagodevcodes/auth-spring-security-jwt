@@ -1,7 +1,11 @@
 package com.sos.auth.auth_sos.config;
 
+import java.security.KeyFactory;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -28,10 +32,28 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
-    @Value("${jwt.public.key}")
-    private RSAPublicKey publicKey;
-    @Value("${jwt.private.key}")
-    private RSAPrivateKey privateKey;
+
+    @Value("${RSA_PUBLIC_KEY}")
+    private String publicKeyBase64;
+
+    @Value("${RSA_PRIVATE_KEY}")
+    private String privateKeyBase64;
+
+    @Bean
+    public RSAPublicKey publicKey() throws Exception {
+        byte[] keyBytes = Base64.getDecoder().decode(publicKeyBase64);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return (RSAPublicKey) keyFactory.generatePublic(spec);
+    }
+
+    @Bean
+    public RSAPrivateKey privateKey() throws Exception {
+        byte[] keyBytes = Base64.getDecoder().decode(privateKeyBase64);
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return (RSAPrivateKey) keyFactory.generatePrivate(spec);
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -47,19 +69,20 @@ public class SecurityConfig {
     }
 
     @Bean 
-    public JwtEncoder jwtEncoder() {
-        JWK jwk = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
+    public JwtEncoder jwtEncoder() throws Exception {
+        JWK jwk = new RSAKey.Builder(this.publicKey()).privateKey(this.privateKey()).build();
         var jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
         return new NimbusJwtEncoder(jwks);
     }
 
     @Bean
-    public JwtDecoder JwtDecoder() {
-        return NimbusJwtDecoder.withPublicKey(publicKey).build();
+    public JwtDecoder jwtDecoder() throws Exception {
+        return NimbusJwtDecoder.withPublicKey(publicKey()).build();
     }
 
     @Bean 
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
 }
